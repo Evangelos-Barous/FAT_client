@@ -38,7 +38,7 @@ async def main():
             else:
                 print("Failed to connect to device")
     except Exception as e:
-        print(e)
+        print(e) 
 
 
 asyncio.run(main())
