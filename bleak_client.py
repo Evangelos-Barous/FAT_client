@@ -9,7 +9,7 @@
 # # calculate the user performance score and append to the list of all the data points for
 # # the post workout data stuff (like velocity graphs)
 # async def notification_handler(sender, data: bytearray):
-#     print(f"Notification from {sender.address}: {data.decode('utf-8')}") 
+#     print(f"Notification from {data}: {sender}: {data.decode('utf-8', 'ignore')}")
 
 # async def main():
 #     devices = await BleakScanner.discover()
@@ -19,7 +19,7 @@
 #     # Start receiving notifications once
 #     # Notification handler is the notification callback that will be written that takes in the data
 #     # and parses it/sends it to the UI
-#         # await client.start_notify(CHAR_ACC_UUID, notification_handler)
+#         # await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
 #         # await client.start_notify(
 #             # char_specifier, partial(my_notification_callback_with_client_input, client)
 #         # )
@@ -31,7 +31,8 @@
 #                 try:
 #                     # Pair with the device (distinct from just connecting)
 #                     await client.pair()
-#                     for i in range(10000):
+#                     await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
+#                     for i in range(5):
 #                         print("We are still connected")
 #                 except Exception as e:
 #                     print(e)
@@ -39,8 +40,6 @@
 #                 print("Failed to connect to device")
 #     except Exception as e:
 #         print(e) 
-
-
 # asyncio.run(main())
 
 import argparse
@@ -53,6 +52,9 @@ from bleak import BleakClient, BleakScanner
 
 addresses = ["C8:2E:18:DE:51:F2"]
 uuids = []
+
+async def notification_handler(sender, data: bytearray):
+    print(f"Notification from {data}: {sender}: {data.decode('utf-8', 'ignore')}")
 
 async def connect_to_device(
     lock: asyncio.Lock,
@@ -89,9 +91,7 @@ async def connect_to_device(
             async with lock:
                 print("scanning for %s", name_or_address)
 
-                device = await BleakScanner.find_device_by_address(
-                        name_or_address, macos=dict(use_bdaddr=True)
-                )
+                # device = await BleakScanner.find_device_by_name("Wrist Device")
 
                 # if by_address:
                 #     device = await BleakScanner.find_device_by_address(
@@ -102,11 +102,34 @@ async def connect_to_device(
 
                 print("stopped scanning for %s", name_or_address)
 
-                if device is None:
-                    logging.error("%s not found", name_or_address)
-                    return
+                # if device is None:
+                #     logging.error("%s not found", name_or_address)
+                #     return
 
-                client = BleakClient(device)
+                async with BleakClient(name_or_address) as client:
+                    for service in client.services:
+                        print("[Service] %s", service)
+            
+                        for char in service.characteristics:
+                            print(char.properties)
+                            if "read" in char.properties:
+                                try:
+                                    value = await client.read_gatt_char(char.uuid)
+                                    extra = f", Value: {value}"
+                                except Exception as e:
+                                    extra = f", Error: {e}"
+                            else:
+                                extra = ""
+            
+                            if "write-without-response" in char.properties:
+                                extra += f", Max write w/o rsp size: {char.max_write_without_response_size}"
+            
+                            print(
+                                "  [Characteristic] %s (%s)%s",
+                                char,
+                                ",".join(char.properties),
+                                extra,
+                            )
 
                 print("connecting to %s", name_or_address)
 
@@ -122,10 +145,10 @@ async def connect_to_device(
             # Bluetooth adapter is now free to scan and connect another device
             # without disconnecting this one.
 
-            def callback(_, data):
-                logging.info("%s received %r", name_or_address, data)
-
-            # await client.start_notify(notify_uuid, callback)
+            if await client.is_connected():
+                print("We are trying to notify")
+                await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
+                print("Notify should have ran")
             # while rep_count < 12:
             #    do nothing, keeping the start notify running
             await asyncio.sleep(10.0)
