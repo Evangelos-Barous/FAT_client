@@ -51,6 +51,7 @@ from typing import Iterable
 
 from bleak import BleakClient, BleakScanner
 
+device_connected_count = 0
 addresses = ["C8:2E:18:DE:51:F2"]
 uuids = []
 
@@ -79,6 +80,7 @@ async def connect_to_device(
         notify_uuid:
             The UUID of a characteristic that supports notifications.
     """
+    global device_connected_count
     print("starting %s task", name_or_address)
 
     try:
@@ -113,6 +115,7 @@ async def connect_to_device(
                 await stack.enter_async_context(client)
 
                 print("connected to %s", name_or_address)
+                device_connected_count += 1
 
                 # This will be called immediately before client.__aexit__ when
                 # the stack context manager exits.
@@ -125,6 +128,10 @@ async def connect_to_device(
             def callback(_, data):
                 logging.info("%s received %r", name_or_address, data)
 
+            while device_connected_count < 1:
+                await asyncio.sleep(0.001)
+            
+            print("All devices connected")
             # await client.start_notify(notify_uuid, callback)
             # while rep_count < 12:
             #    do nothing, keeping the start notify running
