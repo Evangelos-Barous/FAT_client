@@ -50,12 +50,15 @@ from typing import Iterable
 
 from bleak import BleakClient, BleakScanner
 
+wrist_error = 0
 devices_connected = 0
 addresses = ["C8:2E:18:DE:51:F2"]
 uuids = []
 
 async def notification_handler(sender, data: bytearray):
+    global wrist_error
     print(f"Notification from {data}: {sender}: {data.decode('utf-8', 'ignore')}")
+    wrist_error = 1
 
 async def connect_to_device(
     lock: asyncio.Lock,
@@ -153,7 +156,9 @@ async def connect_to_device(
                 while devices_connected < 1:
                     await asyncio.sleep(0.01)
                 print("We are trying to notify")
-                await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
+                while True:
+                    await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
+                    await client.write_gatt_char('2e2e3152-975f-46b4-83bd-d1311a25b1c9', b"\x01", response=False)
                 print("Notify should have ran")
             # while rep_count < 12:
             #    do nothing, keeping the start notify running
