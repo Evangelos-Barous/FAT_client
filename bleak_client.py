@@ -50,11 +50,8 @@ from typing import Iterable
 
 from bleak import BleakClient, BleakScanner
 
-<<<<<<< Updated upstream
-=======
 wrist_error = 0
 devices_connected = 0
->>>>>>> Stashed changes
 addresses = ["C8:2E:18:DE:51:F2"]
 uuids = []
 
@@ -88,6 +85,7 @@ async def connect_to_device(
         notify_uuid:
             The UUID of a characteristic that supports notifications.
     """
+    global devices_connected
     print("starting %s task", name_or_address)
 
     try:
@@ -153,6 +151,10 @@ async def connect_to_device(
             # without disconnecting this one.
 
             if await client.is_connected():
+                await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=False)
+                devices_connected += 1
+                while devices_connected < 1:
+                    await asyncio.sleep(0.01)
                 print("We are trying to notify")
                 while True:
                     await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
