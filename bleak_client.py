@@ -52,7 +52,7 @@ from bleak import BleakClient, BleakScanner
 
 wrist_error = 0
 devices_connected = 0
-addresses = ["C8:2E:18:DE:51:F2"]
+names = ["WristDevice", "BackDevice"]
 uuids = []
 
 async def notification_handler(sender, data: bytearray):
@@ -96,22 +96,17 @@ async def connect_to_device(
             async with lock:
                 print("scanning for %s", name_or_address)
 
-                # device = await BleakScanner.find_device_by_name("Wrist Device")
-
-                # if by_address:
-                #     device = await BleakScanner.find_device_by_address(
-                #         name_or_address, macos=dict(use_bdaddr=macos_use_bdaddr)
-                #     )
-                # else:
-                #     device = await BleakScanner.find_device_by_name(name_or_address)
+                device = await BleakScanner.find_device_by_name(name_or_address)
 
                 print("stopped scanning for %s", name_or_address)
 
-                # if device is None:
-                #     logging.error("%s not found", name_or_address)
-                #     return
+                if device is None:
+                    logging.error("%s not found", name_or_address)
+                    return
+                else:
+                    print("Found %s", name_or_address)
 
-                async with BleakClient(name_or_address) as client:
+                async with BleakClient(device) as client:
                     for service in client.services:
                         print("[Service] %s", service)
             
@@ -153,7 +148,7 @@ async def connect_to_device(
             if await client.is_connected():
                 await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=False)
                 devices_connected += 1
-                while devices_connected < 1:
+                while devices_connected < 2:
                     await asyncio.sleep(0.01)
                 print("We are trying to notify")
                 while True:
@@ -176,15 +171,15 @@ async def connect_to_device(
 async def main(
     #by_address: bool,
     #macos_use_bdaddr: bool,
-    device_addresses: Iterable[str],
+    names: Iterable[str],
     #uuids: Iterable[str],
 ):
     lock = asyncio.Lock()
 
     await asyncio.gather(
         *(
-            connect_to_device(lock, address)#by_address, macos_use_bdaddr, address)#, uuid)
-            for address in device_addresses
+            connect_to_device(lock, name)#by_address, macos_use_bdaddr, address)#, uuid)
+            for name in names
             #for address, uuid in zip(device_addresses, uuids)
         )
     )
@@ -245,7 +240,7 @@ if __name__ == "__main__":
         main(
             # args.by_address,
             # args.macos_use_bdaddr,
-            addresses,
+            names,
             #(args.uuid1, args.uuid2),
         )
     )
