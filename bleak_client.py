@@ -52,12 +52,13 @@ from bleak import BleakClient, BleakScanner
 
 wrist_error = 0
 devices_connected = 0
-names = ["WristDevice", "BackDevice"]
+names = ["BackDevice"]
+#names = ["WristDevice", "BackDevice"]
 uuids = []
 
-async def notification_handler(sender, data: bytearray):
+async def notification_handler_1(sender, data: bytearray):
     global wrist_error
-    print(f"Notification from {data}: {sender}: {data.decode('utf-8', 'ignore')}")
+    print(f"Notification from callback 1: {sender}: {data.decode('utf-8', 'ignore')}")
     wrist_error = 1
 
 async def connect_to_device(
@@ -65,6 +66,7 @@ async def connect_to_device(
     #by_address: bool,
     #macos_use_bdaddr: bool,
     name_or_address: str,
+    callback, 
     #notify_uuid: str,
 ):
     """
@@ -146,14 +148,16 @@ async def connect_to_device(
             # without disconnecting this one.
 
             if await client.is_connected():
-                await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=False)
                 devices_connected += 1
-                while devices_connected < 2:
+                while devices_connected < 1:
                     await asyncio.sleep(0.01)
+                print("Telling server to start")
+                await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=False)
                 print("We are trying to notify")
                 while True:
-                    await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', notification_handler)
-                    await client.write_gatt_char('2e2e3152-975f-46b4-83bd-d1311a25b1c9', b"\x01", response=False)
+                    await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', callback)
+                    if (name_or_address == "WristDevice"): 
+                        await client.write_gatt_char('2e2e3152-975f-46b4-83bd-d1311a25b1c9', b"\x01", response=False)
                 print("Notify should have ran")
             # while rep_count < 12:
             #    do nothing, keeping the start notify running
@@ -168,18 +172,21 @@ async def connect_to_device(
         logging.exception("error with %s", name_or_address)
 
 
+callbacks = [notification_handler_1]
+
 async def main(
     #by_address: bool,
     #macos_use_bdaddr: bool,
     names: Iterable[str],
+    callbacks,
     #uuids: Iterable[str],
 ):
     lock = asyncio.Lock()
 
     await asyncio.gather(
         *(
-            connect_to_device(lock, name)#by_address, macos_use_bdaddr, address)#, uuid)
-            for name in names
+            connect_to_device(lock, name, callback)#by_address, macos_use_bdaddr, address)#, uuid)
+            for name, callback in zip(names, callbacks)
             #for address, uuid in zip(device_addresses, uuids)
         )
     )
@@ -241,6 +248,7 @@ if __name__ == "__main__":
             # args.by_address,
             # args.macos_use_bdaddr,
             names,
+            callbacks,
             #(args.uuid1, args.uuid2),
         )
     )
