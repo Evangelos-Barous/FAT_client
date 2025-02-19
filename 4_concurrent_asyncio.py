@@ -35,8 +35,8 @@ first_one_ready = False
 second_one_ready = False
 forearm_data = 0
 
-async def callback_1(event1, event2):
-    await asyncio.sleep(0.015)
+async def callback_1(event1, event2, wait_time):
+    await asyncio.sleep(wait_time)
     print("First one is ready")
     event1.set()
     await event2.wait()
@@ -45,9 +45,9 @@ async def callback_1(event1, event2):
     print("Task 1: Both are done")
     event1.clear()
 
-async def callback_2(event1, event2):
+async def callback_2(event1, event2, wait_time):
+    await asyncio.sleep(wait_time)
     global forearm_data
-    await asyncio.sleep(0.015)
     print("Second one is ready")
     forearm_data = random.randint(1, 1000)
     print("Forearm data to send", forearm_data)
@@ -56,17 +56,23 @@ async def callback_2(event1, event2):
     print("Task 2: Both are done")
     event2.clear()
 
-async def callback_3(event1, event2):
-    await asyncio.sleep(0.015)
+async def callback_3(event1, event2, wait_time):
+    await asyncio.sleep(wait_time)
     print("Third one is doing its own thing")
+
+async def callback_4(event1, event2, wait_time):
+    await asyncio.sleep(wait_time)
+    print("Fourth one is doing its own thing")
     
-async def wait_for_both(callback, task_num, event1, event2):
+async def wait_for_both(callback, task_num, wait_time, event1, event2):
     print(callback)
     for i in range(100):
         print(task_num, i)
-        result = await callback(event1, event2)
+        result = await callback(event1, event2, wait_time)
 
-callbacks = [callback_1, callback_2, callback_3]
+wait_times = [0.02, 0.02, 0.03, 0.03]
+task_nums = [1, 2, 3, 4]
+callbacks = [callback_1, callback_2, callback_3, callback_4]
 
 async def main():
     event1 = asyncio.Event()
@@ -80,7 +86,7 @@ async def main():
 
     await asyncio.gather(
         *(
-            wait_for_both(callback, 1, event1, event2) for callback in callbacks
+            wait_for_both(callback, task_num, wait_time, event1, event2) for callback, task_num, wait_time in zip(callbacks, task_nums, wait_times)
         )
     )
     
