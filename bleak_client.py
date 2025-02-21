@@ -48,6 +48,7 @@ import contextlib
 import logging
 from typing import Iterable
 import time
+import os
 
 from bleak import BleakClient, BleakScanner
 
@@ -56,6 +57,8 @@ async def notification_handler_1(sender, data: bytearray):
     #await asyncio.sleep(0)
     #data1 = int.from_bytes(data, "little")
     print(f"Notification from callback 1: {sender}: {data.decode('utf-8', 'ignore')} at {time.time() * 1000}")
+    with open("backData.txt", "a") as file:
+        file.write(data.decode('utf-8', 'ignore') + "\n")
     wrist_error = 1
 
 async def notification_handler_2(sender, data: bytearray):
@@ -63,6 +66,8 @@ async def notification_handler_2(sender, data: bytearray):
     #await asyncio.sleep(0)
     #data2 = int.from_bytes(data, "little")
     print(f"Notification from callback 2: {sender}: {data.decode('utf-8', 'ignore')} at {time.time() * 1000}")
+    with open("wristData.txt", "a") as file:
+        file.write(data.decode('utf-8', 'ignore') + "\n")
     wrist_error = 1
 
 async def notification_handler_3(sender, data: bytearray):
@@ -70,6 +75,8 @@ async def notification_handler_3(sender, data: bytearray):
     #await asyncio.sleep(0)
     #data2 = int.from_bytes(data, "little")
     print(f"Notification from callback 3: {sender}: {data.decode('utf-8', 'ignore')} at {time.time() * 1000}")
+    with open("bicepData.txt", "a") as file:
+        file.write(data.decode('utf-8', 'ignore') + "\n")
     wrist_error = 1
 
 async def connect_to_device(
@@ -168,9 +175,10 @@ async def connect_to_device(
                 await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', callback)
                 while True:
                     await asyncio.sleep(0.01)
+                    #print("Hello")
                     #await client.start_notify('beb5483e-36e1-4688-b7f5-ea07361b26a8', callback)
-                    if (name_or_address == "WristDevice"): 
-                        await client.write_gatt_char('2e2e3152-975f-46b4-83bd-d1311a25b1c9', b"\x01", response=False)
+                    # if (name_or_address == "WristDevice"): 
+                    #     await client.write_gatt_char('2e2e3152-975f-46b4-83bd-d1311a25b1c9', b"\x01", response=False)
                 print("Notify should have ran")
             # while rep_count < 12:
             #    do nothing, keeping the start notify running
@@ -186,7 +194,7 @@ async def connect_to_device(
 
 wrist_error = 0
 devices_connected = 0
-#names = ["WristDevice"]
+#names = ["BicepDevice"]
 #names = ["BackDevice", "WristDevice"]
 names = ["BackDevice", "WristDevice", "BicepDevice"]
 uuids = []
@@ -261,6 +269,18 @@ if __name__ == "__main__":
     #     level=log_level,
     #     format="%(asctime)-15s %(name)-8s %(levelname)s: %(message)s",
     # )
+
+    file_path = 'bicepData.txt'
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    file_path = 'wristData.txt'
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    file_path = 'backData.txt'
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
     asyncio.run(
         main(
