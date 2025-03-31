@@ -167,7 +167,8 @@ async def connect_to_device(
 
             if await client.is_connected():
                 devices_connected += 1
-                while devices_connected < 3:
+                while devices_connected < 1:
+                    print("Sleeping")
                     await asyncio.sleep(0.01)
                 print("Telling server to start")
                 await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=False)
@@ -194,12 +195,12 @@ async def connect_to_device(
 
 wrist_error = 0
 devices_connected = 0
-#names = ["BicepDevice"]
+names = ["BackDevice"]
 #names = ["BackDevice", "WristDevice"]
-names = ["BackDevice", "WristDevice", "BicepDevice"]
+#names = ["BackDevice", "WristDevice", "BicepDevice"]
 uuids = []
-#callbacks = [notification_handler_1]
-callbacks = [notification_handler_1, notification_handler_2, notification_handler_3]
+callbacks = [notification_handler_1]
+#callbacks = [notification_handler_1, notification_handler_2, notification_handler_3]
 
 async def main(
     #by_address: bool,
