@@ -56,7 +56,6 @@ DEVICE_CONFIGS = [
     {"name": "BicepDevice", "handler": notification_handler_3},
 ]
 
-CHAR_UUID = "8BF6A823-6E83-FBDB-7B9A-2D2529B7909F"
 
 async def connect_to_device(
         lock: asyncio.Lock,
@@ -116,7 +115,7 @@ async def connect_to_device(
 
             if await client.is_connected():
                 devices_connected += 1
-                while devices_connected < 1:
+                while devices_connected < 3:
                     print("Sleeping")
                     await asyncio.sleep(0.01)
                 print("Telling server to start")
@@ -134,12 +133,10 @@ async def connect_to_device(
         logging.exception("error with %s", name_or_address)
 
 
-wrist_error = 0
 devices_connected = 0
-names = ["BicepDevice"]
-#names = ["BackDevice", "WristDevice", "BicepDevice"]
+names = ["BackDevice", "WristDevice", "BicepDevice"]
 uuids = []
-callbacks = [notification_handler_3]
+callbacks = [notification_handler_1, notification_handler_2, notification_handler_3]
 
 async def main_ble_loop(
     names: Iterable[str],
