@@ -41,13 +41,26 @@ async def notification_handler_1(sender, data: bytearray):
 async def notification_handler_2(sender, data: bytearray):
     global wrist_error
     msg = data.decode("utf-8", "ignore").strip()
-    error_code = msg[-1] if msg[-1].isdigit() else None
+    if len(msg) <= 18:
+        print(f"Message length: {len(msg)}")
+        rep_number = msg[-3]
+    else:
+        rep_number = msg[-4:-2]
+    print(f"Rep number: {rep_number}")
+    hand_code = msg[-1]
+    forearm_code = msg[-2]
+    if hand_code == "0" and forearm_code != "0":
+        error_code = forearm_code
+    elif hand_code != "0" and forearm_code == "0": # add condition for both are !0
+        error_code = hand_code
+    else:
+        error_code = "0"
     timestamp = f"{msg} at {time.time() * 1000}"
     print(f"WristDevice: {timestamp}")
     with open("wristData.txt", "a") as file:
         file.write(msg + "\n")
     if ready:
-        sio.emit("ble_data", {"device": "WristDevice", "errorCode": error_code})
+        sio.emit("ble_data", {"device": "WristDevice", "repNumber": rep_number, "errorCode": error_code})
     else:
         print("SocketIO not ready, skipping emit")
     wrist_error = 1
@@ -125,7 +138,6 @@ async def connect_to_device(
             if await client.is_connected():
                 devices_connected += 1
                 while devices_connected < 3:
-                    print("Sleeping")
                     await asyncio.sleep(0.01)
                 print("Telling server to start")
                 await client.write_gatt_char('55aa3bf2-6768-4c6e-97d9-fa443755401f', b"\x01", response=True)
@@ -144,10 +156,10 @@ async def connect_to_device(
 wrist_error = 0
 devices_connected = 0
 #names = ["BicepDevice"]
-names = ["BackDevice", "WristDevice", "BicepDevice"]
+names = ["WristDevice", "BicepDevice", "BackDevice"]
 uuids = []
 #callbacks = [notification_handler_3]
-callbacks = [notification_handler_1, notification_handler_2, notification_handler_3]
+callbacks = [notification_handler_2, notification_handler_3, notification_handler_1]
 
 async def main(
     names: Iterable[str],

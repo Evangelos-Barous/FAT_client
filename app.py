@@ -2,12 +2,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
 import subprocess
+import os
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins=["http://localhost:3000"], async_mode="threading")
 
 print("Flask backend is running...")
+DEVICE_FILE_MAP = {
+    "WristDevice": "wristDataGood.txt",
+    "BackDevice": "backDataGood.txt",
+    "BicepDevice": "bicepDataErrors.txt"
+}
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -27,22 +33,64 @@ def handle_ble_data(data):
     socketio.emit("ble_data", data)
     print("Data sent to React frontend:", data)
 
+@socketio.on("get_device_data")
+def handle_get_device_data(data):
+    device = data.get("device")
+    filename = DEVICE_FILE_MAP.get(device)
+    print(f"Request for device data: {device}")
+
+    if not filename or not os.path.exists(filename):
+        socketio.emit("device_data", {"device": device, "data": [], "error": "File not found"})
+        return
+
+    try:
+        parsed_data = []
+
+        with open(filename, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    if device == "WristDevice":
+                        x = float(line[0:5])
+                        y = float(line[5:10])
+                        z = float(line[10:16])
+                        code = line[-2:]
+                    else:
+                        x = float(line[0:5])
+                        y = float(line[5:10])
+                        z = float(line[10:15])
+                        code = line[-2:]
+
+                    zero_count = code.count('0')
+                    code_length = len(code)
+                    performance_score = zero_count / code_length if code_length > 0 else 0
+
+                    parsed_data.append({
+                        "xData": x,
+                        "yData": y,
+                        "zData": z,
+                        "code": code,
+                        "score": performance_score
+                    })
+                except ValueError as e:
+                    print(f"Skipping malformed line: {line} ({e})")
+
+        socketio.emit("device_data", {"device": device, "data": parsed_data})
+        print(f"Sent {len(parsed_data)} parsed values for {device}")
+    except Exception as e:
+        socketio.emit("device_data", {"device": device, "data": [], "error": str(e)})
+        print(f"Error reading file for {device}: {e}")
+
+
+
 @app.route("/run-script", methods=["GET", "POST"])
 def run_script():
-    # if request.method == "GET":
-    #     return jsonify({"message": "Send a POST to run the script."})
-    
-    # if request.method == 'POST':
-    #     return '', 204
     try:    
         print("Trying to run script")
         result = subprocess.Popen(
             ["python", "ble.py", "--run"],
-            # capture_output=True,
-            # text=True,
-            # check=True
-            # stdout=open("script_output.txt", "w"),
-            # stderr=subprocess.STDOUT
         )
         print("Script output:", result.stdout)
 
